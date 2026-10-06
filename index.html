@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prototipo - Egresados Instituto Técnico</title>
+    <script src="//unpkg.com/globe.gl"></script>
+    <!-- Importar tipografía estilo 8-bit / Pixel Art desde Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-blue: #003366;
+            --accent-red: #cc0000;
+            --pure-white: #ffffff;
+            --bg-glass: rgba(10, 18, 30, 0.9);
+            --border-glass: rgba(255, 255, 255, 0.15);
+            --text-main: #f0f4f8;
+            --text-muted: #94a3b8;
+        }
+
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #000; 
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+        }
+        
+        #globeViz { width: 100vw; height: 100vh; }
+        
+        /* 🕹️ Título Superior en Estilo 8-Bit / Retro */
+        .header-title {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            text-align: center;
+            pointer-events: none; /* Para que no moleste al hacer clic detrás */
+        }
+
+        .header-title h1 {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 1.1rem;
+            color: var(--pure-white);
+            margin: 0;
+            text-shadow: 3px 3px 0px var(--accent-red), 0 0 15px rgba(204, 0, 0, 0.6);
+            letter-spacing: 2px;
+        }
+
+        .header-title span {
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            display: block;
+            margin-top: 6px;
+        }
+
+        .controls { position: absolute; top: 25px; left: 20px; z-index: 10; }
+        .btn-theme {
+            background: var(--bg-glass);
+            border: 1px solid var(--accent-red);
+            color: var(--pure-white); 
+            padding: 10px 20px; 
+            border-radius: 30px;
+            cursor: pointer; 
+            font-weight: bold; 
+            backdrop-filter: blur(8px);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        .btn-theme:hover { background: var(--accent-red); }
+
+        /* Modal Moderno */
+        #infoModal {
+            display: none; 
+            position: absolute; 
+            top: 50%; left: 50%; 
+            transform: translate(-50%, -50%);
+            background: var(--bg-glass); 
+            border: 1px solid var(--border-glass);
+            border-top: 4px solid var(--accent-red);
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7); 
+            padding: 30px; 
+            border-radius: 16px; 
+            color: var(--text-main); 
+            z-index: 10; 
+            width: 380px; 
+            backdrop-filter: blur(12px);
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, -46%); }
+            to { opacity: 1; transform: translate(-50%, -50%); }
+        }
+
+        .profile-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 15px;
+        }
+
+        .profile-avatar {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--primary-blue);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .profile-titles h2 { margin: 0; font-size: 1.25rem; color: var(--pure-white); }
+        .profile-titles p { margin: 4px 0 0 0; font-size: 0.85rem; color: var(--accent-red); font-weight: 600; }
+
+        .modal-body { display: flex; flex-direction: column; gap: 10px; font-size: 0.95em; margin-bottom: 25px; }
+        .info-row { display: flex; justify-content: space-between; align-items: center; background: rgba(255, 255, 255, 0.03); padding: 8px 12px; border-radius: 8px; }
+        .info-label { color: var(--text-muted); font-size: 0.85rem; }
+        .info-value { color: var(--pure-white); font-weight: 500; text-align: right; }
+
+        .close-btn { background: var(--primary-blue); color: var(--pure-white); border: none; padding: 12px; cursor: pointer; border-radius: 8px; font-weight: bold; width: 100%; transition: background 0.3s; }
+        .close-btn:hover { background: #004080; }
+
+        /* Panel Lateral de Dominación */
+        #dominancePanel {
+            display: none;
+            position: absolute;
+            top: 25px;
+            right: 20px;
+            background: var(--bg-glass);
+            border: 1px solid var(--accent-red);
+            box-shadow: 0 8px 32px rgba(204, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 12px;
+            color: #fff;
+            z-index: 10;
+            width: 320px;
+            backdrop-filter: blur(8px);
+        }
+        .dominance-title { font-size: 1em; font-weight: bold; margin-bottom: 12px; color: var(--accent-red); text-align: center; text-transform: uppercase; letter-spacing: 1px; }
+        .dominance-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+        .dominance-table th, .dominance-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .dominance-table th { color: #4da6ff; }
+    </style>
+</head>
+<body>
+
+    <!-- Título Superior Retro 8-bit -->
+    <div class="header-title">
+        <h1>INSTITUTO TECNICO</h1>
+        <span>Red Global de Egresados</span>
+    </div>
+
+    <div class="controls">
+        <button class="btn-theme" onclick="toggleDominanceMode()" id="themeBtn">🚀 Activar Dominación Global</button>
+    </div>
+
+    <div id="globeViz"></div>
+
+    <!-- Modal Moderno -->
+    <div id="infoModal">
+        <div class="profile-header">
+            <img id="modalAvatar" src="" alt="Foto Egresado" class="profile-avatar">
+            <div class="profile-titles">
+                <h2 id="modalName">Nombre</h2>
+                <p id="modalCareer">Especialidad</p>
+            </div>
+        </div>
+        <div class="modal-body">
+            <div class="info-row"><span class="info-label">🎓 Promoción</span><span class="info-value" id="modalYear"></span></div>
+            <div class="info-row"><span class="info-label">📍 Ubicación</span><span class="info-value" id="modalLocation"></span></div>
+            <div class="info-row"><span class="info-label">💼 Ocupación</span><span class="info-value" id="modalJob"></span></div>
+        </div>
+        <button class="close-btn" onclick="closeModal()">Cerrar perfil</button>
+    </div>
+
+    <!-- Panel Lateral -->
+    <div id="dominancePanel">
+        <div class="dominance-title">⚡ Expansión Institucional ⚡</div>
+        <table class="dominance-table">
+            <thead>
+                <tr><th>País / Región</th><th>Egresados</th></tr>
+            </thead>
+            <tbody id="dominanceBody"></tbody>
+        </table>
+    </div>
+
+    <script>
+        let isDominanceActive = false;
+        let world;
+        let countriesGeoData = { features: [] };
+
+        const simulatedData = [
+            { lat: -26.8083, lng: -65.2176, name: "Mateo Giménez", career: "Técnico Mecánico", year: "Promoción 2018", city: "Tucumán, Argentina", country: "Argentina", job: "Ingeniero de Planta", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80" },
+            { lat: -34.6037, lng: -58.3816, name: "Valentina Sosa", career: "Técnica en Computación", year: "Promoción 2020", city: "Buenos Aires, Argentina", country: "Argentina", job: "Tech Lead", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80" },
+            { lat: 40.7128, lng: -74.0060, name: "Sofía Valdéz", career: "Técnica Electrónica", year: "Promoción 2015", city: "Nueva York, EE.UU.", country: "United States of America", job: "Sistemas Embebidos", avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=80" },
+            { lat: 41.3851, lng: 2.1734, name: "Lucas Benítez", career: "Técnico Constructor", year: "Promoción 2012", city: "Barcelona, España", country: "Spain", job: "Arquitecto BIM Senior", avatar: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=200&q=80" },
+            { lat: 52.5200, lng: 13.4050, name: "Julián Vera", career: "Técnico Mecánico", year: "Promoción 2013", city: "Berlín, Alemania", country: "Germany", job: "Robotics Engineer", avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=200&q=80" },
+            { lat: 35.6762, lng: 139.6503, name: "Renzo Kagawa", career: "Técnico en Computación", year: "Promoción 2021", city: "Tokio, Japón", country: "Japan", job: "Software Engineer", avatar: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=200&q=80" }
+        ];
+
+        const conqueredCountries = new Set(simulatedData.map(d => d.country));
+
+        // Inicializar Globo
+        world = Globe()
+            (document.getElementById('globeViz'))
+            .globeImageUrl('//unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
+            .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
+            .backgroundImageUrl('//unpkg.com/three-globe/example/img/night-sky.png')
+            .pointsData(simulatedData)
+            .pointAltitude(0.06)
+            .pointColor(() => '#ffffff')
+            .pointRadius(0.7)
+            .pointLabel(d => `
+                <div style="background: rgba(0,25,50,0.9); padding: 8px 12px; border-radius: 6px; border: 1px solid #003366; color: #fff;">
+                    <b>${d.name}</b><br/><span style="color:#94a3b8; font-size:0.85em;">${d.city}</span>
+                </div>
+            `)
+            .onPointClick(d => openModal(d))
+            .onPointHover(d => { world.controls().autoRotate = !d; });
+
+        world.controls().autoRotate = true;
+        world.controls().autoRotateSpeed = 1.0;
+
+        // Cargar GeoJSON de países
+        fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson')
+            .then(res => res.json())
+            .then(geojson => {
+                countriesGeoData = geojson;
+            });
+
+        function toggleDominanceMode() {
+            isDominanceActive = !isDominanceActive;
+            const btn = document.getElementById('themeBtn');
+            const panel = document.getElementById('dominancePanel');
+
+            if (isDominanceActive) {
+                btn.innerText = "🌍 Volver a Vista Normal";
+                panel.style.display = 'block';
+                buildDominanceTable();
+
+                world.polygonsData(countriesGeoData.features)
+                    .polygonCapColor(d => conqueredCountries.has(d.properties.ADMIN) ? 'rgba(204, 0, 0, 0.85)' : 'rgba(0, 0, 0, 0)')
+                    .polygonSideColor(() => 'rgba(204, 0, 0, 0.3)')
+                    .polygonStrokeColor(() => '#e5e7eb')
+                    .polygonAltitude(d => conqueredCountries.has(d.properties.ADMIN) ? 0.015 : 0);
+            } else {
+                btn.innerText = "🚀 Activar Dominación Global";
+                panel.style.display = 'none';
+                world.polygonsData([]);
+            }
+        }
+
+        function buildDominanceTable() {
+            const counts = {};
+            simulatedData.forEach(item => {
+                counts[item.country] = (counts[item.country] || 0) + 1;
+            });
+
+            const tbody = document.getElementById('dominanceBody');
+            tbody.innerHTML = '';
+            for (const [country, count] of Object.entries(counts)) {
+                tbody.innerHTML += `<tr><td>🌍 ${country}</td><td><b>${count}</b> egresad${count > 1 ? 'os' : 'o'}</td></tr>`;
+            }
+        }
+
+        function openModal(data) {
+            world.controls().autoRotate = false;
+            document.getElementById('modalAvatar').src = data.avatar;
+            document.getElementById('modalName').innerText = data.name;
+            document.getElementById('modalCareer').innerText = data.career;
+            document.getElementById('modalYear').innerText = data.year;
+            document.getElementById('modalLocation').innerText = data.city;
+            document.getElementById('modalJob').innerText = data.job;
+            document.getElementById('infoModal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('infoModal').style.display = 'none';
+            world.controls().autoRotate = true;
+        }
+    </script>
+</body>
+</html>
